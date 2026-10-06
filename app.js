@@ -22,6 +22,8 @@ const store = {
 };
 
 let settings = Object.assign({}, DEFAULT_SETTINGS, store.get(LS_SETTINGS, {}));
+// Kalau browser belum punya key, pakai key bawaan dari rules.js
+if (!settings.apiKey && DEFAULT_SETTINGS.apiKey) settings.apiKey = DEFAULT_SETTINGS.apiKey;
 let units = [];
 let history = store.get(LS_HISTORY, []);
 let shown = []; // brief yang sedang tampil: [{id, brief, meta}]
@@ -128,9 +130,51 @@ function parseAIJson(text) {
 /* ---------- Gemini API ---------- */
 function cleanModel(m) { return String(m || "").replace(/^models\//, "").trim(); }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Urutan model yang dicoba: model pilihan dulu, lalu model flash lain sebagai cadangan
+function modelQueue() {
+  const saved = store.get(LS_SETTINGS + ".models", []);
+  const backups = saved.filter(m => /flash/i.test(m) && !/pro/i.test(m));
+  const q = [cleanModel(settings.model)].concat(backups, ["gemini-2.5-flash", "gemini-2.5-flash-lite"]);
+  return [...new Set(q.filter(Boolean))].slice(0, 4);
+}
+
+// Panggil Gemini dengan retry otomatis + pindah model kalau server penuh / limit habis
 async function callGemini(system, user, opts) {
   opts = opts || {};
   if (!settings.apiKey) throw new Error("API key belum diisi. Buka ⚙️ Pengaturan dulu, atau pakai tombol Copy Prompt.");
+  const onProgress = opts.onProgress || function () {};
+  const models = modelQueue();
+  let lastErr = null;
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const text = await callGeminiOnce(model, system, user, opts);
+        if (model !== cleanModel(settings.model)) {
+          toast("Model " + settings.model + " lagi penuh, otomatis pakai " + model);
+        }
+        return text;
+      } catch (err) {
+        lastErr = err;
+        const st = err.status || 0;
+        const busy = st === 503 || st === 500 || st === 502 || st === 504 || st === 0;
+        if (st === 400 || st === 401 || st === 403) throw err;         // masalah key: berhenti
+        if (busy && attempt === 1) {                                     // server penuh: coba sekali lagi
+          onProgress("Server " + model + " lagi penuh, mencoba ulang…");
+          await sleep(2500);
+          continue;
+        }
+        break;                                                           // 404 / 429 / masih penuh: ganti model
+      }
+    }
+    if (mi < models.length - 1) onProgress("Pindah ke model cadangan: " + models[mi + 1] + "…");
+  }
+  throw lastErr || new Error("Gagal menghubungi Gemini.");
+}
+
+async function callGeminiOnce(model, system, user, opts) {
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
@@ -140,17 +184,21 @@ async function callGemini(system, user, opts) {
 
   let res;
   try {
-    res = await fetch(API_BASE + "/models/" + encodeURIComponent(cleanModel(settings.model)) + ":generateContent", {
+    res = await fetch(API_BASE + "/models/" + encodeURIComponent(model) + ":generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": settings.apiKey },
       body: JSON.stringify(body)
     });
   } catch (e) {
-    throw new Error("Gagal terhubung ke Gemini. Cek koneksi internet lalu coba lagi.");
+    const ne = new Error("Gagal terhubung ke Gemini. Cek koneksi internet lalu coba lagi.");
+    ne.status = 0; throw ne;
   }
   let data = null;
   try { data = await res.json(); } catch (e) { /* kosong */ }
-  if (!res.ok) throw new Error(friendlyError(res.status, data));
+  if (!res.ok) {
+    const he = new Error(friendlyError(res.status, data, model));
+    he.status = res.status; throw he;
+  }
 
   const cand = data && data.candidates && data.candidates[0];
   const parts = (cand && cand.content && cand.content.parts) || [];
@@ -162,12 +210,14 @@ async function callGemini(system, user, opts) {
   return text;
 }
 
-function friendlyError(status, data) {
+function friendlyError(status, data, model) {
   const msg = (data && data.error && data.error.message) || "";
+  model = model || settings.model;
+  if (status === 503) return "Semua model Gemini yang dicoba lagi penuh (503). Ini gangguan sementara dari server Google — coba lagi 1–2 menit lagi, atau pakai Copy Prompt.";
   if (status === 429) return "Limit gratis sedang penuh (terlalu banyak request). Tunggu ±1 menit lalu coba lagi. Kalau masih gagal, limit harian habis — coba besok, ganti model di Pengaturan, atau pakai Copy Prompt.";
   if (status === 400 && /api key/i.test(msg)) return "API key tidak valid. Cek lagi di ⚙️ Pengaturan (pastikan tidak ada spasi terbawa).";
   if (status === 403) return "API key ditolak (403). Pastikan key dibuat di aistudio.google.com/apikey dan Gemini API aktif.";
-  if (status === 404) return "Model \"" + settings.model + "\" tidak ditemukan atau sudah pensiun. Buka ⚙️ Pengaturan → klik \"Cek model\" → Simpan.";
+  if (status === 404) return "Model \"" + model + "\" tidak ditemukan atau sudah pensiun. Buka ⚙️ Pengaturan → klik \"Cek model\" → Simpan.";
   if (status >= 500) return "Server Gemini sedang bermasalah (" + status + "). Coba lagi sebentar.";
   return "Error " + status + (msg ? ": " + msg : "");
 }
@@ -176,7 +226,7 @@ async function fetchModels(key) {
   const res = await fetch(API_BASE + "/models?pageSize=200", { headers: { "x-goog-api-key": key } });
   let data = null;
   try { data = await res.json(); } catch (e) { /* kosong */ }
-  if (!res.ok) throw new Error(friendlyError(res.status, data));
+  if (!res.ok) throw new Error(friendlyError(res.status, data, "-"));
   const bad = /(image|tts|audio|live|embedding|vision|learnlm|robotics|computer-use|aqa|veo|imagen|native)/i;
   const names = ((data && data.models) || [])
     .filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
@@ -335,7 +385,8 @@ async function onGenerate(e) {
   btn.disabled = true;
   setStatus("Lagi bikin " + input.jumlah + " brief… biasanya 10–40 detik.", "loading");
   try {
-    const text = await callGemini(buildSystemPrompt(settings), buildUserPrompt(input, input.unitData, "json"));
+    const text = await callGemini(buildSystemPrompt(settings), buildUserPrompt(input, input.unitData, "json"),
+      { onProgress: m => setStatus(m, "loading") });
     const data = parseAIJson(text);
     const briefs = data && (Array.isArray(data.briefs) ? data.briefs : (Array.isArray(data) ? data : (data.judul ? [data] : null)));
     const meta = { objective: input.objective, platform: input.platform };
@@ -441,7 +492,7 @@ async function onCheckModels() {
   }
 }
 function onSaveSettings() {
-  settings.apiKey = $("#apiKey").value.trim();
+  settings.apiKey = $("#apiKey").value.trim() || DEFAULT_SETTINGS.apiKey || "";
   settings.model = cleanModel($("#model").value) || DEFAULT_SETTINGS.model;
   settings.dealerName = $("#dealerName").value.trim() || DEFAULT_SETTINGS.dealerName;
   settings.ctaInfo = $("#ctaInfo").value.trim();
