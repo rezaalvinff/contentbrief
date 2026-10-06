@@ -5,7 +5,7 @@
    ========================================================= */
 
 const DEFAULT_SETTINGS = {
-  apiKey: "",
+  apiKey: "AQ.Ab8RN6Lwp2_9F0rey5SMKzX78xvD9W2tSxPT3z48txCHHijlsw",
   model: "gemini-2.5-flash",
   dealerName: "Dealer Mitsubishi DIPO",
   ctaInfo: "",          // opsional, contoh: "Jl. Ir. H. Juanda, Ciputat / WA 0812xxxx"
