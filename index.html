@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brief Generator DIPO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">▶</span>
+    <div>
+      <h1>Brief Generator</h1>
+      <p class="sub">Konten video 30–45 detik · Dealer Mitsubishi DIPO</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn ghost" id="btnHistory" type="button">🕘 Riwayat</button>
+    <button class="btn ghost" id="btnSettings" type="button">⚙️ Pengaturan</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="keyWarning" class="notice hidden">
+    API key belum diisi. Klik <b>⚙️ Pengaturan</b> untuk memasukkan API key Gemini (gratis), atau pakai tombol <b>Copy Prompt</b> untuk generate di Gemini/ChatGPT/Claude secara manual.
+  </div>
+
+  <form id="briefForm" class="card form" autocomplete="off">
+    <div class="field">
+      <label>Objective</label>
+      <div class="seg" role="radiogroup">
+        <label class="seg-opt"><input type="radio" name="objective" value="Engagement" checked><span>💬 Engagement<small>like · komen · share · save</small></span></label>
+        <label class="seg-opt"><input type="radio" name="objective" value="Leads"><span>🎯 Leads<small>datang · test drive · SPK</small></span></label>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label for="unit">Unit</label>
+        <select id="unit"></select>
+      </div>
+      <div class="field">
+        <label for="talent">Talent</label>
+        <select id="talent">
+          <option>1 cowok + 1 cewek</option>
+          <option>2 cowok</option>
+          <option>2 cewek</option>
+          <option>1 orang saja (cowok)</option>
+          <option>1 orang saja (cewek)</option>
+          <option value="bebas, maksimal 2 orang (pilih komposisi paling cocok)">Bebas (maks. 2 orang)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="durasi">Durasi</label>
+        <select id="durasi">
+          <option value="bebas di rentang 30–45 detik">Bebas 30–45 detik</option>
+          <option value="30 detik">30 detik</option>
+          <option value="35 detik">35 detik</option>
+          <option value="40 detik">40 detik</option>
+          <option value="45 detik">45 detik</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="platform">Platform</label>
+        <select id="platform">
+          <option>TikTok & Instagram Reels</option>
+          <option>TikTok</option>
+          <option>Instagram Reels</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="angle">Ide / angle <span class="opt">(opsional)</span></label>
+      <textarea id="angle" rows="3" placeholder="Contoh: mitos vs fakta mobil hybrid · keluarga baru punya anak bingung pilih mobil · sales ditanya pertanyaan aneh customer"></textarea>
+    </div>
+
+    <div class="row-end">
+      <div class="field inline">
+        <label for="jumlah">Jumlah ide</label>
+        <select id="jumlah">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" type="button" id="btnCopyPrompt" title="Salin prompt lengkap untuk ditempel di Gemini / ChatGPT / Claude">📋 Copy Prompt</button>
+        <button class="btn primary" type="submit" id="btnGenerate">✨ Generate Brief</button>
+      </div>
+    </div>
+  </form>
+
+  <div id="status" class="status hidden"></div>
+  <section id="results"></section>
+</main>
+
+<!-- PANEL RIWAYAT -->
+<aside id="historyPanel" class="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Riwayat brief</h2>
+    <button class="btn ghost small" id="btnCloseHistory" type="button">✕</button>
+  </div>
+  <p class="muted small-text">Tersimpan di browser ini saja (maks. 50).</p>
+  <div id="historyList"></div>
+  <button class="btn ghost small danger" id="btnClearHistory" type="button">Hapus semua riwayat</button>
+</aside>
+<div id="backdrop" class="backdrop hidden"></div>
+
+<!-- DIALOG PENGATURAN -->
+<dialog id="settingsDialog">
+  <form method="dialog" id="settingsForm" class="settings">
+    <h2>⚙️ Pengaturan</h2>
+
+    <div class="field">
+      <label for="apiKey">Gemini API key</label>
+      <div class="key-row">
+        <input id="apiKey" type="password" placeholder="Tempel API key dari Google AI Studio">
+        <button class="btn ghost small" type="button" id="btnToggleKey">👁</button>
+      </div>
+      <p class="hint">Ambil gratis di <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Key hanya disimpan di browser ini, tidak masuk ke GitHub.</p>
+    </div>
+
+    <div class="field">
+      <label for="model">Model</label>
+      <div class="key-row">
+        <select id="model"></select>
+        <button class="btn ghost small" type="button" id="btnCheckModels">🔄 Cek model</button>
+      </div>
+      <p class="hint" id="modelHint">Klik "Cek model" setelah isi API key supaya daftar model gratis terbaru muncul otomatis.</p>
+    </div>
+
+    <div class="field">
+      <label for="dealerName">Nama dealer di CTA</label>
+      <input id="dealerName" type="text">
+    </div>
+
+    <div class="field">
+      <label for="ctaInfo">Info tambahan CTA <span class="opt">(opsional)</span></label>
+      <input id="ctaInfo" type="text" placeholder="Contoh: cabang Ciputat / WA 0812-xxxx / link di bio">
+    </div>
+
+    <div class="field">
+      <label for="temperature">Kreativitas: <b id="tempVal"></b></label>
+      <input id="temperature" type="range" min="0.3" max="1.3" step="0.1">
+      <p class="hint">Rendah = lebih aman & mirip-mirip. Tinggi = ide lebih liar.</p>
+    </div>
+
+    <div class="dialog-actions">
+      <button class="btn ghost" value="cancel" type="button" id="btnCancelSettings">Batal</button>
+      <button class="btn primary" type="button" id="btnSaveSettings">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG PROMPT MANUAL (cadangan kalau clipboard gagal) -->
+<dialog id="promptDialog">
+  <div class="settings">
+    <h2>📋 Prompt siap tempel</h2>
+    <p class="hint">Salin semua teks di bawah, lalu tempel ke Gemini / ChatGPT / Claude.</p>
+    <textarea id="promptText" rows="14" readonly></textarea>
+    <div class="dialog-actions">
+      <button class="btn ghost" type="button" id="btnClosePrompt">Tutup</button>
+      <button class="btn primary" type="button" id="btnCopyPromptAgain">Salin</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script src="rules.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

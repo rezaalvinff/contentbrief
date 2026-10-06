@@ -1,0 +1,68 @@
+{
+  "_petunjuk": "Isi data tiap unit di sini. AI HANYA boleh pakai angka, harga, dan promo dari file ini. Kosongkan kalau belum tahu. Hapus unit yang tidak dijual, atau salin satu blok untuk menambah unit baru. Jangan lupa tanda koma antar-blok.",
+  "units": [
+    {
+      "nama": "Xpander",
+      "tipe": "MPV 7-seater",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    },
+    {
+      "nama": "Xpander Cross",
+      "tipe": "Crossover MPV 7-seater",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    },
+    {
+      "nama": "Xforce HEV",
+      "tipe": "Compact SUV hybrid",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    },
+    {
+      "nama": "Destinator",
+      "tipe": "SUV 7-seater",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    },
+    {
+      "nama": "Pajero Sport",
+      "tipe": "SUV 7-seater",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    },
+    {
+      "nama": "Triton",
+      "tipe": "Pick-up",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    },
+    {
+      "nama": "L300",
+      "tipe": "Kendaraan niaga pick-up",
+      "harga_mulai": "",
+      "keunggulan": [],
+      "promo": [],
+      "target_pembeli": "",
+      "catatan": ""
+    }
+  ]
+}
