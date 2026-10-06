@@ -29,4 +29,4 @@ Di GitHub buka file `units.json` (atau `rules.js`) → ikon ✏️ → edit → 
 ## Kalau error
 - **Limit penuh (429):** tunggu 1 menit; kalau masih, limit harian habis → pakai **📋 Copy Prompt** lalu tempel ke Gemini/ChatGPT/Claude.
 - **Model tidak ditemukan (404):** Pengaturan → Cek model → Simpan.
-- Jangan masukkan data pelanggan/leads ke tools ini (free tier Gemini boleh dipakai Google untuk training).
+- Jangan masukkan data pelanggan/leads ke tools ini (free tier Gemini boleh dipakai Google untuk training). 
